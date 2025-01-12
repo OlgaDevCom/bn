@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Order Book</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: "Roboto", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e2f;
+            color: #ffffff;
+        }
+        header {
+            background-color: #131722;
+            color: #ffffff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .chart-container {
+            background-color: #232b3a;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        .chart-container h2 {
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+            color: #f5f5f5;
+            border-bottom: 1px solid #3a3f5c;
+            padding-bottom: 0.5rem;
+        }
+        .chart {
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Binance Order Book & Spread Dashboard</h1>
+    </header>
+    <div class="container">
+        <div class="chart-container">
+            <h2>Current Spread</h2>
+            <div id="current-spread" class="chart"></div>
+        </div>
+        <div class="chart-container">
+            <h2>Spread History (Candlestick)</h2>
+            <div id="spread-history" class="chart"></div>
+        </div>
+        <div class="chart-container">
+            <h2>Order Volume History</h2>
+            <div id="volume-history" class="chart"></div>
+        </div>
+    </div>
+    <script>
+        const ws = new WebSocket("ws://192.168.0.197:8080/ws");
+
+        ws.onopen = () => {
+            console.log("WebSocket підключено.");
+        };
+
+        ws.onclose = () => {
+            console.warn("WebSocket закрито.");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            // Поточний спред (лінійний графік із маркерами)
+            const spreadTimestamps = data.spread_history?.map(item => item[0]) || [];
+            const spreadValues = data.spread_history?.map(item => item[1]) || [];
+            const currentSpreadTrace = {
+                x: spreadTimestamps,
+                y: spreadValues,
+                mode: 'lines+markers',
+                name: 'Current Spread',
+                line: { color: '#1f77b4' },
+                marker: { size: 8 }
+            };
+            Plotly.react('current-spread', [currentSpreadTrace], {
+                title: 'Current Spread Over Time',
+                margin: { t: 40 },
+                font: { size: 14, color: '#ffffff' },
+                yaxis: {
+                    title: 'Spread Value',
+                    color: '#ffffff',
+                    gridcolor: '#3a3f5c'
+                },
+                xaxis: {
+                    title: 'Time',
+                    color: '#ffffff',
+                    gridcolor: '#3a3f5c'
+                },
+                paper_bgcolor: '#232b3a',
+                plot_bgcolor: '#232b3a'
+            });
+
+            // Історія спреду (свічковий графік)
+            const spreadCandleData = {
+                x: data.spread_candles?.map(c => c.timestamp) || [],
+                open: data.spread_candles?.map(c => c.open) || [],
+                high: data.spread_candles?.map(c => c.high) || [],
+                low: data.spread_candles?.map(c => c.low) || [],
+                close: data.spread_candles?.map(c => c.close) || [],
+                type: 'candlestick',
+                increasing: { line: { color: '#2ca02c' } },
+                decreasing: { line: { color: '#d62728' } }
+            };
+            Plotly.react('spread-history', [spreadCandleData], {
+                title: 'Spread Candlestick Chart',
+                margin: { t: 40 },
+                font: { size: 14, color: '#ffffff' },
+                yaxis: { title: 'Spread Value', color: '#ffffff', gridcolor: '#3a3f5c' },
+                xaxis: { title: 'Time', color: '#ffffff', gridcolor: '#3a3f5c' },
+                paper_bgcolor: '#232b3a',
+                plot_bgcolor: '#232b3a'
+            });
+
+            // Історія об’ємів (накопичуваний графік)
+            const volumeTimestamps = data.volume_history?.map(item => item[0]) || [];
+            const volumeBids = data.volume_history?.map(item => item[1]) || [];
+            const volumeAsks = data.volume_history?.map(item => item[2]) || [];
+            const bidsTrace = {
+                x: volumeTimestamps,
+                y: volumeBids,
+                name: 'Bid Volume',
+                type: 'scatter',
+                mode: 'lines',
+                fill: 'tozeroy',
+                line: { color: '#2ca02c' }
+            };
+            const asksTrace = {
+                x: volumeTimestamps,
+                y: volumeAsks,
+                name: 'Ask Volume',
+                type: 'scatter',
+                mode: 'lines',
+                fill: 'tonexty',
+                line: { color: '#d62728' }
+            };
+            Plotly.react('volume-history', [bidsTrace, asksTrace], {
+                title: 'Order Volume (Stacked Area)',
+                margin: { t: 40 },
+                font: { size: 14, color: '#ffffff' },
+                yaxis: { title: 'Volume', color: '#ffffff', gridcolor: '#3a3f5c' },
+                xaxis: { title: 'Time', color: '#ffffff', gridcolor: '#3a3f5c' },
+                paper_bgcolor: '#232b3a',
+                plot_bgcolor: '#232b3a'
+            });
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+    </script>
+</body>
+</html>
