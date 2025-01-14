@@ -50,6 +50,7 @@ async fn main() {
                 // Розрахунок спреду
                 if let (Some(best_bid), Some(best_ask)) = (data.bids.first(), data.asks.first()) {
                     let spread = best_ask.0 - best_bid.0;
+                    println!("Spread: {:.2} {} {}", spread, best_bid.0, best_ask.0);
                     let timestamp = chrono::Local::now().format("%H:%M:%S").to_string();
                     data.spread_history.push((timestamp.clone(), spread));
 
@@ -73,7 +74,7 @@ async fn main() {
             Ok(())
         });
 
-        if let Err(e) = web_socket.connect("btcusdt@depth@100ms").await {
+        if let Err(e) = web_socket.connect("solusdt@depth@100ms").await {
             eprintln!("Помилка підключення до WebSocket: {:?}", e);
             return;
         }
